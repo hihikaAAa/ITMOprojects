@@ -1,0 +1,205 @@
+#include <iostream>
+#include <vector>
+#include <climits>
+using namespace std;
+
+struct Edge {
+    int to;
+
+    Edge() {
+        to = -1;
+    }
+
+    explicit Edge(int destVID = -1) {
+        to = destVID;
+    }
+
+};
+
+struct Roads {
+    int fromHouse;
+    int toHouse;
+
+    Roads() {
+        fromHouse = -1;
+        toHouse = -1;
+    }
+
+    explicit Roads(int fh, int th) {
+        fromHouse = fh;
+        toHouse = th;
+    }
+};
+
+struct Vertex {
+    int state_id;
+    string color;
+    int out_tact;
+    int family_number;
+
+    vector<Edge> edgeList;
+    vector<Edge> rev_edge_list;
+
+    Vertex() {
+        state_id = -1;
+        color = "white";
+        out_tact = 0;
+        family_number = -1;
+    }
+
+    explicit Vertex(int id) {
+        state_id = id;
+        color = "white";
+        out_tact = 0;
+        family_number = -1;
+    }
+};
+
+struct Graph {
+    vector<Vertex> vertices;
+    vector<Vertex> order;
+    vector<Roads> roads;
+
+    explicit Graph(int n) {
+        vertices.resize(n);
+        for (int i = 0; i < n; i++) {
+            vertices[i].state_id = i + 1;
+            vertices[i].color = "white";
+        }
+    }
+
+
+    void addEdgebyID(int fromVertex, int toVertex) {
+        int from = fromVertex - 1;
+        int to = toVertex - 1;
+        vertices[from].edgeList.emplace_back(to);
+        vertices[to].rev_edge_list.emplace_back(from);
+    }
+
+    void DFS(int indx, int &tact) {
+        Vertex &vertice = vertices[indx];
+        vertice.color = "black";
+        tact += 1;
+        vertice.out_tact = tact;
+        for (auto &edge: vertice.edgeList) {
+            if (vertices[edge.to].color != "black") {
+                DFS(edge.to, tact);
+                tact += 1;
+                vertice.out_tact = tact;
+            }
+        }
+        order.push_back(vertice);
+    }
+
+    void inv_DFS(int indx, int &family_indx) {
+        Vertex &vertice = vertices[indx];
+        vertice.color = "white";
+        if (vertice.state_id < family_indx) {
+            family_indx = vertice.state_id;
+        }
+        for (auto &edge: vertice.rev_edge_list) {
+            if (vertices[edge.to].color != "white") {
+                inv_DFS(edge.to, family_indx);
+            }
+        }
+        vertice.family_number = family_indx;
+    }
+
+    void road_DFS(int indx) {
+        Vertex &vertice = vertices[indx];
+        vertice.color = "black";
+        for (auto &edge: vertice.edgeList) {
+            if (vertice.family_number != vertices[edge.to].family_number) {
+                roads.emplace_back(vertice.family_number, vertices[edge.to].family_number);
+            }
+            if (vertices[edge.to].color != "black") {
+                road_DFS(edge.to);
+            }
+        }
+    }
+};
+
+void countingSort(vector<Roads> &arr, int exp, bool sortByFrom) {
+    int n = arr.size();
+    vector<Roads> output(n);
+    int count[10] = {0};
+    for (int i = 0; i < n; i++) {
+        int key = (sortByFrom ? arr[i].fromHouse : arr[i].toHouse);
+        int digit = (key / exp) % 10;
+        count[digit]++;
+    }
+    for (int i = 1; i < 10; i++) {
+        count[i] += count[i - 1];
+    }
+    for (int i = n - 1; i >= 0; i--) {
+        int key = (sortByFrom ? arr[i].fromHouse : arr[i].toHouse);
+        int digit = (key / exp) % 10;
+        output[count[digit] - 1] = arr[i];
+        count[digit]--;
+    }
+    arr = output;
+}
+
+void radixSort(vector<Roads> &arr, bool sortByFrom) {
+    int maxVal = 0;
+    for (int i = 0; i < arr.size(); i++) {
+        int key = (sortByFrom ? arr[i].fromHouse : arr[i].toHouse);
+        if (key > maxVal)
+            maxVal = key;
+    }
+    for (int exp = 1; maxVal / exp > 0; exp *= 10) {
+        countingSort(arr, exp, sortByFrom);
+    }
+}
+
+int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+    cout.tie(nullptr);
+    int houses, roads;
+    cin >> houses >> roads;
+    Graph g(houses);
+    int fromVertex, toVertex;
+    for (int i = 0; i < roads; i++) {
+        cin >> fromVertex >> toVertex;
+        g.addEdgebyID(fromVertex, toVertex);
+    }
+    int tact = 0;
+    for (int i = 0; i < houses; i++) {
+        if (g.vertices[i].color != "black") {
+            g.DFS(i, tact);
+        }
+    }
+
+    int count = 0;
+    int fam_indx = INT_MAX;
+    for (int i = 0; i < (int) g.order.size(); i++) {
+        int indx = g.order[g.order.size() - 1 - i].state_id - 1;
+        if (g.vertices[indx].color == "black") {
+            g.inv_DFS(indx, fam_indx);
+            count++;
+            fam_indx = INT_MAX;
+        }
+    }
+    for (int i = 0; i < houses; i++) {
+        if (g.vertices[i].color != "black") {
+            g.road_DFS(i);
+        }
+    }
+    if (!g.roads.empty()) {
+        radixSort(g.roads, false);
+        radixSort(g.roads, true);
+    }
+    vector<Roads> output;
+    for (int i = 0; i < g.roads.size(); i++) {
+        if (i == 0 || g.roads[i].fromHouse != g.roads[i - 1].fromHouse || g.roads[i].toHouse != g.roads[i - 1].
+            toHouse) {
+            output.push_back(g.roads[i]);
+        }
+    }
+    cout << count << ' ' << output.size() << '\n';
+    for (auto &road: output) {
+        cout << road.fromHouse << ' ' << road.toHouse << '\n';
+    }
+    return 0;
+}
