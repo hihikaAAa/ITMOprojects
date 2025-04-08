@@ -1,0 +1,82 @@
+#include <iostream>
+
+using namespace std;
+
+struct Node {
+    int key;
+    int height;
+    int answer;
+    int l_indx;
+    int r_indx;
+    Node *left;
+    Node *right;
+
+    Node() {
+        key = 0;
+        height = 0;
+        answer = 0;
+        left = nullptr;
+        right = nullptr;
+    }
+
+    Node(int k, int l_i, int r_i) {
+        key = k;
+        l_indx = l_i;
+        r_indx = r_i;
+        height = 0;
+        answer = 0;
+        left = nullptr;
+        right = nullptr;
+    }
+};
+
+static int max_finder(int a, int b) {
+    if (a > b) {
+        return a;
+    }
+    return b;
+}
+
+static void update_heigth(Node *node) {
+    if (node != nullptr) {
+        update_heigth(node->left);
+        update_heigth(node->right);
+        int r_height = 0;
+        int l_height = 0;
+        if (node->left != nullptr) {
+            l_height = node->left->height;
+        }
+        if (node->right != nullptr) {
+            r_height = node->right->height;
+        }
+        node->height = 1 + max_finder(l_height, r_height);
+        node->answer = r_height - l_height;
+    }
+}
+
+Node *arr[200000];
+
+int main() {
+    int numb;
+    cin >> numb;
+    int K;
+    int L;
+    int R;
+    for (int i = 1; i <= numb; i++) {
+        cin >> K >> L >> R;
+        arr[i] = new Node(K, L, R);
+    }
+    for (int i = 1; i <= numb; i++) {
+        if (arr[i]->l_indx != 0) {
+            arr[i]->left = arr[arr[i]->l_indx];
+        }
+        if (arr[i]->r_indx != 0) {
+            arr[i]->right = arr[arr[i]->r_indx];
+        }
+    }
+    update_heigth(arr[1]);
+    for (int i = 1; i <= numb; i++) {
+        cout << arr[i]->answer << endl;
+    }
+}
+
